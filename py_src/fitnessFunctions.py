@@ -6,6 +6,7 @@ import openml
 from sklearn.metrics import accuracy_score
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from unet.unet_setup_training import *
 
 
 def alphabetToList(alphabet, numberOfVariables):
@@ -433,6 +434,37 @@ def getNoisyBaseline():
 
 	pickle.dump(acc_dict, open('baselines_noisy.pkl','wb'))
 
+
+class NAS(DummyFitnessFunction):
+	'''
+	Fitness Function is a network evaluation on a certain task
+	'''
+
+	def __init__(self, folder, filename, numberOfVariables, alphabet):
+		# print(folder, filename, numberOfVariables, alphabet)
+		self.logger = Logger(folder) 
+		self.numberOfVariables = int(numberOfVariables)		
+		self.alphabet = alphabetToList(alphabet, numberOfVariables)
+		self.filename = filename
+
+	def fitness(self, x):
+		x = np.array(x).astype(np.int32)
+		xStr = self.logger.solutionToStr(x) #convert solution to str
+		find = self.logger.returnSolution(xStr) #check if it was already evaluated
+		if find != None:
+			return find
+		
+		score = 0
+		try:
+			# maybe_mkdir(join(output_path, "_".join(genotype)))
+			score = evaluate(xStr.replace("_", ""))
+		except Exception as e:
+			print(e)
+		
+		self.logger.write(xStr, score) #write to the file '*/optimization.txt', increments solution counter			
+		self.logger.writeForTraining(xStr, score) #write to the file '*/collectedData.txt' to use for surrogate model training	
+ 		
+		return score
 
 
 if __name__ == '__main__':

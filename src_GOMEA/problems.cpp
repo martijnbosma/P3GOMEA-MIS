@@ -12,16 +12,25 @@ void PythonFunction::initializeProblem(Config *config, int numberOfVariables_)
   string pwd = filesystem::current_path().string();
   cout << "current_path: " << pwd << endl;
   char moduleName[1000];
-  sprintf(moduleName, "import sys; sys.path.insert(0, \"%s/py_src\")", pwd.c_str());  
+  sprintf(moduleName, "import sys; sys.path.insert(0, \"%s/py_src/\")", pwd.c_str());  
   cout << moduleName << endl;
   PyRun_SimpleString(moduleName);
-  //PyRun_SimpleString ("import sys; print (sys.path)");
+//   PyRun_SimpleString ("import sys; print (sys.path)");
 
   PyObject* module = PyImport_ImportModule("fitnessFunctions");
+  if (module == nullptr) {
+      PyErr_Print();
+      std::exit(1);
+  }
   if (module == NULL) {cout << "Module import failed!\n";}
 
   functionClass = PyObject_GetAttrString(module, functionName.c_str());   /* fetch module.class */
   if (functionClass == NULL) {cout << "Class import failed!\n";}
+
+  cout << config->folder.c_str() << endl;
+  cout << instancePath.c_str() << endl; 
+  cout << config->numberOfVariables << endl;
+  cout << config->alphabet.c_str() << endl;
 
   PyObject *pargs  = Py_BuildValue("(s,s,i,s)", config->folder.c_str(), instancePath.c_str(), config->numberOfVariables, config->alphabet.c_str());
   functionInstance  = PyEval_CallObject(functionClass, pargs);        /* call class(  ) */

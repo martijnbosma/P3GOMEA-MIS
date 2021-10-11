@@ -24,6 +24,7 @@ PopulationGeneral::PopulationGeneral(Config *config_, Problem *problemInstance_,
 
       population[i] = new Individual(config->numberOfVariables, config->alphabetSize);
       population[i]->randomInit(&config->rng);
+      population[i]->verify(3);
       evaluateSolution(population[i]);
 
       if (config->hillClimber == 1)

@@ -3,6 +3,7 @@
 #include <iostream> 
 #include <vector>
 #include <random>
+#include <algorithm>
 using namespace std;
 
 class Individual
@@ -59,5 +60,7 @@ public:
     	}
     	return true;
 	}
+
+	void verify(int encodingLength);
 };
 

@@ -125,6 +125,7 @@ bool PopulationP3::GOM(size_t offspringIndex, Individual *backup)
 
       if (!donorEqualToOffspring)
       {
+        offspringPopulation[offspringIndex]->verify(3);
         evaluateSolution(offspringPopulation[offspringIndex]);
 
         // accept the change if this solution is not the elitist and the fitness is at least equally good (allows random walk in neutral fitness landscape)
@@ -149,5 +150,4 @@ bool PopulationP3::GOM(size_t offspringIndex, Individual *backup)
   }
   return solutionHasChanged;
 }
-
 

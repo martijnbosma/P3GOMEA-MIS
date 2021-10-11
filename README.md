@@ -3,6 +3,10 @@ The paper (preprint): https://arxiv.org/abs/2104.08048
 
 In this repository you can also find implementations of non-surrogate search algorithms, such as GOMEA, Local Search (LS), and Random Search (RS). 
 
+**GOMEA for NAS for Meidcal Image Segmentation**
+CUDA_VISIBLE_DEVICES=0 ./GOMEA --L=30 --timeLimit=172000 --maxEvals=10000 --functionName=NAS --alphabet=py_src/../alphabets/NAS_MIS.txt --folder=py_src/../results/GOMEA_corr06_1/ --seed=0
+
+
 #### Installation
 1. ```pip install -r requirements.txt```
 2. Set Python versions in *Makefile_SAGOMEA* and *Makefile_GOMEA* to the Python paths of your system

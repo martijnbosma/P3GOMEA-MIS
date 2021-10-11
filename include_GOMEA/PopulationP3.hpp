@@ -25,5 +25,5 @@ public:
 	void makeOffspring();
 	void generateOffspring();
 	bool GOM(size_t offspringIndex, Individual *backup);
-	bool conditionalGOM(size_t offspringIndex, Individual *backup, vector<vector<int> > &neighbors);	
+	bool conditionalGOM(size_t offspringIndex, Individual *backup, vector<vector<int> > &neighbors);
 };

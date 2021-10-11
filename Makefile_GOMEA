@@ -14,7 +14,7 @@ $(info $$expected .o files: [${OBJ_FILES}])
 
 CPPFLAGS := -std=c++17 -O3
 INC := -I$(INC_DIR)
-LIBFLAGS := -lstdc++fs -I/usr/include/python3.6m/ -lpython3.6m
+LIBFLAGS := -lstdc++fs -I/usr/include/python3.8/ -lpython3.8
 
 $(TARGET): $(OBJ_FILES)
 	$(CPP) -o $@ $^ $(LIBFLAGS)

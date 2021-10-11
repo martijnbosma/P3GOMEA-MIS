@@ -130,7 +130,7 @@ bool Config::parseCommandLine(int argc, char **argv)
 
 void Config::printUsage()
 {
-  cout << "Usage: SAGOMEA --functionName= --instance= --L= --alphabet= --folder= --timeLimit= --maxEvals= --seed=";
+  cout << "Usage: GOMEA --functionName= --instance= --L= --alphabet= --folder= --timeLimit= --maxEvals= --seed=";
   cout << "   --functionName: Fitness function name. It should be specified in the py_src/fitnessFunctions.py file.\n";
   cout << "   --instance: An optional problem instance name (passed to the fitness function constructor).\n";
   cout << "   --L: Problem size.\n";
