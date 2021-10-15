@@ -183,7 +183,7 @@ class UNetTrainer():
         else:
             #Debugging, custom network
             self.network = smp.Unet(
-                        encoder_name="vgg13_bn", #'vgg13_bn',"resnet_50""resnet152", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+                        encoder_name='vgg19_bn',# "resnet_50""resnet152", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
                         encoder_weights=None,           # use `imagenet` pre-trained weights for encoder initialization
                         in_channels=self.num_input_channels,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
                         classes=self.num_classes,                      # model output channels (number of classes in your dataset)
@@ -577,7 +577,9 @@ class UNetTrainer():
             data = maybe_to_torch(data)
             if torch.cuda.is_available():
                 data = to_cuda(data)
-            output = self.network(data)
+            with torch.cuda.amp.autocast():
+                output = self.network.forward(data)
+            # output = self.network(data)
             segment = torch.softmax(output, 1)
             
             edited_dir = os.environ.get('UNet_edited') if os.environ.get('UNet_edited') is not None else None
@@ -586,8 +588,8 @@ class UNetTrainer():
             spacings = json.load(open(filename,'r'))
 
             for i in range(data.shape[0]):
-                patient = im_fname[i].split("_")[0][4:]
-                patient_slice = im_fname[i].split("_")[1].split(".")[0]
+                patient = im_fname[i][4:6]
+                patient_slice = im_fname[i][7:].split(".")[0]
                 dice = DiceCoeff() 
                 surf_dice = SurfaceDice(2, spacing=spacings[patient])
                 hausdorff = HausdorffDistance(95, spacing=spacings[patient])

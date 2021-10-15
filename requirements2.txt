@@ -60,7 +60,7 @@ scipy==1.7.1
 segmentation-models-pytorch==0.2.0
 simanneal==0.4.2
 six==1.16.0
-Surface-Distance-Based-Measures @ file:///export/scratch1/home/mmab/projects/SAGOMEA/surface-distance
+Surface-Distance-Based-Measures @ file:///export/scratch1/home/mmab/projects/P3GOMEA-MIS/surface-distance
 tenacity==8.0.1
 tensorboard==2.6.0
 tensorboard-data-server==0.6.1

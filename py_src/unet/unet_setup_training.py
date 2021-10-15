@@ -8,7 +8,7 @@ import shutil
 import gc
 
 import numpy as np
-from torch.utils.data import Dataset, DataLoader, dataset
+from torch.utils.data import Dataset, DataLoader
 from unet.datasets import ImageDataset, DoubleImageDataset
 from sklearn.model_selection import KFold
 import torch
@@ -19,10 +19,10 @@ import multiprocessing as mp
 class UNet_parameters:
     n_seeds = 1
     folds = [i for i in range(1)]
-    tl = 4
+    tl = 6
     tf = 8
     base_num_features = 32
-    batch_size = 32
+    batch_size = 64
     patch_size = (128, 128)
     network = "2d"
     num_tr_evals = 2048
@@ -54,14 +54,13 @@ class UNet_parameters:
 ############################################################################################################
 
 def evaluate(solution):
-    results_dir = "src/../../../media/results/GOMEA_corr06_3/"
+    results_dir = "src/../../../media/results/results_corr06_1/"
     dataset = "Task006_FEDMix"
     seed = 0
     epochs_per_round=40 
     max_epochs=40
-    debug="0" 
+    debug="1" 
     deterministic=True
-
 
     task_id = int(dataset[6])
     rounds = 0
@@ -100,7 +99,7 @@ def evaluate(solution):
         print("NAS-py: Creating new 5-fold cross-validation split")
         splits = []
         all_keys_sorted = np.sort(patients_dataset)
-        kfold = KFold(n_splits=5, shuffle=True, random_state=12345)
+        kfold = KFold(n_splits=5, shuffle=True, random_state=12345+seed)
         for _, (train_idx, test_idx) in enumerate(kfold.split(all_keys_sorted)):
             train_keys = np.array(all_keys_sorted)[train_idx]
             test_keys = np.array(all_keys_sorted)[test_idx]
@@ -111,7 +110,6 @@ def evaluate(solution):
         save_pickle(splits, splits_file)
         
     else:
-    # else create split
         splits_file = join(DIRS['results_dir'], "splits_final.pkl")
         print("NAS-py: Using splits from existing split file:", splits_file)
         splits = load_pickle(splits_file)
@@ -132,7 +130,7 @@ def evaluate(solution):
         avg_val_score = float(np.average([results[str(seed)][str(fold)]["val_acc"][int(0.8*len(results[str(seed)][str(fold)]["val_acc"])):] for seed in UNET_PARAMS.seeds for fold in UNET_PARAMS.folds]))
         print("NAS-py: Results:", avg_val_score)
         print("NAS-py:----------------EVALUATION COMPLETE----------------")
-        return avg_val_score, 0
+        return avg_val_score
 
     dir_im = join(DIRS['edited_dir'], UNET_PARAMS.dataset, 'images')
     dir_masks = join(DIRS['edited_dir'], UNET_PARAMS.dataset, 'segmentations')
@@ -151,8 +149,8 @@ def evaluate(solution):
 
         torch.cuda.empty_cache() 
 
-        tr_dataset = DoubleImageDataset([dir_im], [dir_masks], [tr_keys], augment=True, batch_size=UNET_PARAMS.batch_size, image_dim=UNET_PARAMS.patch_size, num_classes=UNET_PARAMS.num_classes)
-        val_dataset = DoubleImageDataset([dir_im], [dir_masks], [val_keys], augment=False, batch_size=UNET_PARAMS.batch_size, image_dim=UNET_PARAMS.patch_size, num_classes=UNET_PARAMS.num_classes)
+        tr_dataset = ImageDataset([dir_im], [dir_masks], [tr_keys], augment=True, batch_size=UNET_PARAMS.batch_size, image_dim=UNET_PARAMS.patch_size, num_classes=UNET_PARAMS.num_classes)
+        val_dataset = ImageDataset([dir_im], [dir_masks], [val_keys], augment=False, batch_size=UNET_PARAMS.batch_size, image_dim=UNET_PARAMS.patch_size, num_classes=UNET_PARAMS.num_classes)
         
         for seed in UNET_PARAMS.seeds:            
             try:
@@ -259,17 +257,21 @@ def training_cycle(trainer, etr, model_path=None):
     trainer.set_starting_epoch()
     ret = trainer.run_training()
     return ret
+    # trainer.validate(save_softmax=npz, validation_folder_name=val_folder, run_postprocessing_on_folds=not disable_postprocessing_on_folds)
 
 
 if __name__ == '__main__':
     output_path = "src/../../../media/results/benchmarks_final_paper/"
-    to_eval = ['0000100022203000320031213002232111210000'] #'0210132021102000100112102020100111220311' 
+    to_eval = ['0320100012202000320031203001232111210121'] #'0210132021102000100112102020100111220311' 
     for genotype in to_eval:
-        if not isdir(join(output_path+"ll", "_".join(genotype))):
+        if not isdir(join(output_path, "_".join(genotype))):
             maybe_mkdir(join(output_path, "_".join(genotype)))
-            evaluate(genotype, output_path, "Task004_Prostate", seed=10, epochs_per_round=150, max_epochs=150, debug="test2", deterministic=True)
+            evaluate(genotype, output_path, "Task005_Prostate", seed=10, epochs_per_round=150, max_epochs=150, debug="test", deterministic=True)
         else:
             print(genotype)
+
+# if __name__ == '__main__':
+#     main()
 
 
     

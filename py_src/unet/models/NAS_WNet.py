@@ -65,6 +65,8 @@ class NAS_WNet(nn.Module):
 				conv_kernel_sizes = [(3, 3, 3)] * (num_pool + 1)
 		if skip_connects is None:
 			skip_connects = [1] * num_pool
+
+		block_types = [0] * len(depth)
 		self.input_shape_must_be_divisible_by = np.prod(pool_op_kernel_sizes, 0, dtype=np.int64)
 		self.pool_op_kernel_sizes = pool_op_kernel_sizes
 		self.conv_kernel_sizes = conv_kernel_sizes
@@ -81,6 +83,21 @@ class NAS_WNet(nn.Module):
 		else:
 			self.max_num_features = max_num_features
 
+		blocks = []
+		for b in block_types:
+			if b == 0:
+				blocks.append(VGGBlock2)
+			elif b == 1:
+				blocks.append(ResidualBlock)
+			elif b == 2: 
+				blocks.append(DenseBlock)
+			elif b == 3: 
+				blocks.append(InceptionBlock)
+			elif b == 4:
+				blocks.append(MobileBlock)
+			else:
+				raise NotImplementedError("No other blocks implemented")
+
 		# Instantiate variables
 		self.conv_blocks = []
 		self.td = []
@@ -90,6 +107,7 @@ class NAS_WNet(nn.Module):
 		print("UNET-py: Network depth per layer:", depth)
 		print("UNET-py: Network conv sizes", conv_kernel_sizes)
 		print("UNET-py: Skip connects", skip_connects)
+		# print("UNET-py: Blocks", blocks)
 
 		# Calculate scaling, input and output features and skipconnects 
 		output_features = base_num_features
@@ -144,69 +162,43 @@ class NAS_WNet(nn.Module):
 				print("UNET-py: connection", l, self.connections[l])
 
 		# add convolutions
-		# initial downscale - always added
-		first_stride = None
-		self.conv_kwargs['kernel_size'] = self.conv_kernel_sizes[0]
-		self.conv_kwargs['padding'] = self.conv_pad_sizes[0]	
 
 		for d in range(len(self.network)):
 			layer = self.network[d]
+			block = blocks[d-1] if d>0 and d<=len(blocks) else VGGBlock2
+			self.conv_kwargs['kernel_size'] = self.conv_kernel_sizes[d-1] if d>0 and d<=len(blocks) else [3,3] #
+			self.conv_kwargs['padding'] = self.conv_pad_sizes[d-1] if d>0 and d<=len(blocks) else [1,1] #
+			input_features, output_features = layer["input"], layer["output"]
+
 			if layer["scaling"] == "down":
 				# downsampling block
-				input_features, output_features = layer["input"], layer["output"]
 				if self.convolutional_pooling and d != 0:
-					first_stride = pool_op_kernel_sizes[d]
-				self.conv_kwargs['kernel_size'] = self.conv_kernel_sizes[d-1] if d>0 else [3,3]
-				self.conv_kwargs['padding'] = self.conv_pad_sizes[d-1] if d>0 else [1,1]
-				self.conv_blocks.append(StackedConvLayers(input_features, output_features, num_conv_per_stage,
-																self.conv_op, self.conv_kwargs, self.norm_op,
-																self.norm_op_kwargs, self.dropout_op,
-																self.dropout_op_kwargs, self.nonlin, self.nonlin_kwargs,
-																first_stride, basic_block=basic_block))
+					stride = pool_op_kernel_sizes[d][0]
+				else:
+					stride = 1
+				self.conv_blocks.append(
+					block(input_features, output_features, kernel_size=self.conv_kwargs['kernel_size'][0], stride=stride))
 				if not self.convolutional_pooling:
 					self.td.append(pool_op(pool_op_kernel_sizes[d]))
 
 			elif layer["scaling"] == "non":
 				# Nonscaling block
-				input_features, output_features = layer["input"], layer["output"]
-				first_stride = None
-				self.conv_kwargs['kernel_size'] = self.conv_kernel_sizes[d-1]
-				self.conv_kwargs['padding'] = self.conv_pad_sizes[d-1]
-				self.conv_kwargs['stride'] = 1
-				self.conv_blocks.append(nn.Sequential(
-					StackedConvLayers(input_features, output_features, num_conv_per_stage - 1, self.conv_op, self.conv_kwargs,
-									self.norm_op, self.norm_op_kwargs, self.dropout_op, self.dropout_op_kwargs, self.nonlin,
-									self.nonlin_kwargs, first_stride, basic_block=basic_block),
-					StackedConvLayers(output_features, output_features, 1, self.conv_op, self.conv_kwargs,
-									self.norm_op, self.norm_op_kwargs, self.dropout_op, self.dropout_op_kwargs, self.nonlin,
-									self.nonlin_kwargs, basic_block=basic_block)))
+				stride = 1
+				self.conv_blocks.append(
+					block(input_features, output_features, kernel_size=self.conv_kwargs['kernel_size'][0], stride=stride))
 
 			else:
 				# Upscaling block
-				input_features, output_features = layer["input"], layer["output"]
 				if not self.convolutional_upsampling:
 					self.tu.append(Upsample(scale_factor=pool_op_kernel_sizes[0], mode=upsample_mode))
 				else:
-					self.tu.append(transpconv(self.connections[d-1]["b"], layer["input"], pool_op_kernel_sizes[0],
-											pool_op_kernel_sizes[0], bias=False))
-				self.conv_kwargs['kernel_size'] = self.conv_kernel_sizes[d-1]
-				self.conv_kwargs['padding'] = self.conv_pad_sizes[d-1]
-				self.conv_blocks.append(nn.Sequential(
-					StackedConvLayers(input_features, output_features, num_conv_per_stage - 1,
-									self.conv_op, self.conv_kwargs, self.norm_op, self.norm_op_kwargs, self.dropout_op,
-									self.dropout_op_kwargs, self.nonlin, self.nonlin_kwargs, basic_block=basic_block),
-					StackedConvLayers(output_features, output_features, 1, self.conv_op, self.conv_kwargs,
-									self.norm_op, self.norm_op_kwargs, self.dropout_op, self.dropout_op_kwargs,
-									self.nonlin, self.nonlin_kwargs, basic_block=basic_block)))
+					self.tu.append(transpconv(self.connections[d-1]["b"], layer["input"], 2,
+											2, bias=False))
+				stride = 1
+				self.conv_blocks.append(
+					block(input_features, output_features, kernel_size=self.conv_kwargs['kernel_size'][0], stride=stride))
 		
-
-		for l in range(len(self.network)):
-			if self.network[l]["scaling"] == "up":
-				ds = l
-				self.seg_outputs.append(conv_op(self.conv_blocks[ds][-1].output_channels, num_classes,
-													1, 1, 0, 1, 1, True))
-		self.seg_outputs.append(conv_op(self.conv_blocks[-1][-1].output_channels, num_classes,
-												1, 1, 0, 1, 1, True))
+		self.seg_outputs.append(conv_op(self.conv_blocks[-1].output_channels, num_classes, 1, 1, 0, 1, 1, True))
 
 		self.upscale_logits_ops = []
 		cum_upsample = np.cumprod(np.vstack(pool_op_kernel_sizes), axis=0)[::-1]
@@ -236,11 +228,13 @@ class NAS_WNet(nn.Module):
 		for l in range(len(self.network)-1):
 			layer = self.network[l]
 			next_layer = self.network[l+1]
-			x = self.conv_blocks[l](x)
+			b = self.conv_blocks[l]
+			# print("tensor: ", x.size(), "; layer:", l, "; depth: ", self.depth[l])
+			x = b(x)
 			skips[l] = x
 			# print("tensor: ", x.size(), "; layer:", l, "; depth: ", self.depth[l])
 			if layer["scaling"] == "up":
-				seg_outputs.append(self.seg_outputs[tu_count](x))
+				# seg_outputs.append(self.seg_outputs[tu_count](x))
 				tu_count += 1
 			connections = self.connections[l]
 			for source in connections["skip_from"]:
@@ -248,16 +242,11 @@ class NAS_WNet(nn.Module):
 				x = torch.cat((x, skips[source]), dim=1)
 			if next_layer["scaling"] == "up":
 				x = self.tu[tu_count](x)
-			# print("tensor: ", x.size(), "; layer:", l, "; depth: ", self.depth[l])
 		x = self.conv_blocks[-1](x)
 		# print("tensor: ", x.size(), "; layer:", l, "; depth: ", self.depth[l])
 		seg_outputs.append(self.seg_outputs[-1](x))
 
-		if self.do_ds:
-			return tuple([seg_outputs[-1]] + [i(j) for i, j in
-						zip(list(self.upscale_logits_ops)[::-1], seg_outputs[:-1][::-1])])
-		else:
-			return seg_outputs[-1]
+		return seg_outputs[-1]
 
 class NAS_multipath_WNet(nn.Module):
 

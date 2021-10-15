@@ -355,6 +355,58 @@ class VGGBlock(nn.Module):
 	def forward(self, x):
 		return self.blocks(x)
 
+class VGGBlock2(nn.Module):
+	def __init__(self, input_feature_channels, output_feature_channels, num_convs = 2, kernel_size=3,
+					conv_op=nn.Conv2d, conv_kwargs=None,
+					norm_op=nn.BatchNorm2d, norm_op_kwargs=None, #BatchNorm2d
+					dropout_op=nn.Dropout2d, dropout_op_kwargs=None,
+					nonlin=nn.LeakyReLU, nonlin_kwargs=None, stride=1, basic_block=ConvDropoutNormNonlin):
+
+		self.input_channels = input_feature_channels
+		self.output_channels = output_feature_channels
+
+		padding_size = 2 if kernel_size == 5 else 3 if kernel_size == 7 else 1
+
+		if nonlin_kwargs is None:
+			nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
+		if dropout_op_kwargs is None:
+			dropout_op_kwargs = {'p': 0.0, 'inplace': True} 
+		if norm_op_kwargs is None:
+			norm_op_kwargs = {'eps': 1e-5, 'affine': True} #, 'momentum': 0.1
+		if conv_kwargs is None:
+			conv_kwargs = {'kernel_size': 3, 'stride': 1, 'padding': [1,1], 'dilation': 1, 'bias': True}
+
+		self.nonlin_kwargs = nonlin_kwargs
+		self.nonlin = nonlin
+		self.dropout_op = dropout_op
+		self.dropout_op_kwargs = dropout_op_kwargs
+		self.norm_op_kwargs = norm_op_kwargs
+		self.conv_kwargs = conv_kwargs
+		self.conv_op = conv_op
+		self.norm_op = norm_op
+
+		if stride is not None:
+			self.conv_kwargs_first_conv = deepcopy(conv_kwargs)
+			self.conv_kwargs_first_conv['stride'] = stride
+			self.conv_kwargs_first_conv['kernel_size'] = kernel_size
+			self.conv_kwargs_first_conv['padding'] = [padding_size, padding_size]
+		else:
+			self.conv_kwargs_first_conv = conv_kwargs
+
+		super(VGGBlock2, self).__init__()
+		self.blocks = nn.Sequential(
+			*([basic_block(input_feature_channels, output_feature_channels, self.conv_op,
+							self.conv_kwargs_first_conv,
+							self.norm_op, self.norm_op_kwargs, self.dropout_op, self.dropout_op_kwargs,
+							self.nonlin, self.nonlin_kwargs)] +
+				[basic_block(output_feature_channels, output_feature_channels, self.conv_op,
+							self.conv_kwargs,
+							self.norm_op, self.norm_op_kwargs, self.dropout_op, self.dropout_op_kwargs,
+							self.nonlin, self.nonlin_kwargs) for _ in range(num_convs - 1)]))
+
+	def forward(self, x):
+		return self.blocks(x)
+
 
 if __name__ == '__main__':
 	device = "cpu"
