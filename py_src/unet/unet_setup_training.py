@@ -17,8 +17,6 @@ import multiprocessing as mp
 
 
 class UNet_parameters:
-    n_seeds = 1
-    folds = [i for i in range(1)]
     tl = 6
     tf = 8
     base_num_features = 32
@@ -41,29 +39,36 @@ class UNet_parameters:
     do_segmentation = False
     calculate_network_size_and_complexity = True
 
-    def __init__(self, dataset, task_id, max_epochs, seed, deterministic, epochs_per_round):
+    def __init__(self, dataset, task_id, max_epochs, seed, deterministic, epochs_per_round, n_of_seeds, n_of_folds):
         self.dataset = dataset
         self.task_id = task_id
         self.num_input_channels = 1 if task_id == 9 or task_id == 6 else 2
         self.num_classes = 2 if task_id == 9 or task_id == 6 else 3
         self.epochs_per_round = epochs_per_round
         self.max_epochs = max_epochs
+        self.n_seeds = n_of_seeds
         self.seeds = [i + seed for i in range(self.n_seeds)]
+        self.folds = [i for i in range(n_of_folds)]
         self.deterministic = deterministic
 
-############################################################################################################
 
 def evaluate(solution):
-    results_dir = "src/../../../media/results/results_corr06_1/"
-    dataset = "Task006_FEDMix"
-    seed = 0
-    epochs_per_round=40 
-    max_epochs=40
-    debug="1" 
-    deterministic=True
 
+    ######################CHANGE THE EVALUATION PARAMETERS HERE###########################
+    run="1"
+    results_dir="src/../../../media/results/results_corr06_{}/".format(run)
+    dataset="Task006_FEDMix"
+    seed=0
+    epochs_per_round=40 
+    n_of_seeds=1
+    n_of_folds=1
+    debug=run 
+    ######################################################################################
+
+    deterministic=True
     task_id = int(dataset[6])
     rounds = 0
+    max_epochs=epochs_per_round
 
     print("NAS-py:----------------BEGIN EVALUATION OF:", solution, "----------------")
     
@@ -80,7 +85,7 @@ def evaluate(solution):
     os.makedirs(DIRS["results_dir"], exist_ok=True)
 
     # Initialize parameters
-    UNET_PARAMS = UNet_parameters(dataset, task_id, max_epochs, seed, deterministic, epochs_per_round=epochs_per_round)
+    UNET_PARAMS = UNet_parameters(dataset, task_id, max_epochs, seed, deterministic, epochs_per_round=epochs_per_round, n_of_seeds=n_of_seeds, n_of_folds=n_of_folds)
     DIRS['output_dir'] = join(DIRS['trained_dir'], UNET_PARAMS.network, UNET_PARAMS.dataset+"_{}".format(debug))
 
     # Remove existing data that may cause interference
